@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -20,12 +21,26 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-=%bf#+vtu%r95(c^gjh5htsc&)$*k)3^p_6tse^@8-_y_r1$b1'
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-=%bf#+vtu%r95(c^gjh5htsc&)$*k)3^p_6tse^@8-_y_r1$b1')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DJANGO_DEBUG', 'True').lower() in {'1', 'true', 'yes'}
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    '127.0.0.1',
+    'localhost',
+    '.vercel.app',
+]
+extra_hosts = os.getenv('DJANGO_ALLOWED_HOSTS', '')
+if extra_hosts:
+    ALLOWED_HOSTS += [host.strip() for host in extra_hosts.split(',') if host.strip()]
+
+CSRF_TRUSTED_ORIGINS = [
+    'https://*.vercel.app',
+]
+extra_csrf = os.getenv('DJANGO_CSRF_TRUSTED_ORIGINS', '')
+if extra_csrf:
+    CSRF_TRUSTED_ORIGINS += [origin.strip() for origin in extra_csrf.split(',') if origin.strip()]
 
 
 # Application definition
@@ -49,6 +64,12 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+try:
+    import whitenoise  # noqa: F401
+    MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
+except ImportError:
+    pass
 
 ROOT_URLCONF = 'shri_ganesh.urls'
 
@@ -121,3 +142,9 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+if 'whitenoise.middleware.WhiteNoiseMiddleware' in MIDDLEWARE:
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
